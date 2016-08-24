@@ -1,6 +1,6 @@
 import urlparse
 
-from django.conf.urls.defaults import patterns, url
+from django.conf.urls import patterns, url
 from django.contrib.sites.models import Site
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect, Http404
@@ -8,7 +8,7 @@ from django.shortcuts import render_to_response
 from django.template.context import RequestContext
 from django.utils.translation import get_language, ugettext_lazy as _
 
-from shop.models.ordermodel import Order
+from shop.models.order import BaseOrder as Order
 import requests
 
 from saferpay_backend import settings
