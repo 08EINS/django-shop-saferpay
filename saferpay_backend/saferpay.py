@@ -8,21 +8,28 @@ from django.shortcuts import render_to_response
 from django.template.context import RequestContext
 from django.utils.translation import get_language, ugettext_lazy as _
 
-from shop.models.order import BaseOrder as Order
+from project.models.order import HeimgartnerOrder
+from shop.models.order import BaseOrder as Order, OrderPayment
 import requests
 
 from saferpay_backend import settings
 from saferpay_backend.tasks import payment_complete
 import logging
+import urlparse
 
 logger = logging.getLogger('shop.payment.saferpay')
 
 
 class SaferPayBackend(object):
-    backend_name = "SaferPay"
+    backend_name = _("Zahlung per Kreditkarte")
     url_namespace = "saferpay"
 
     backend_description = _('credit card')
+
+
+    settings.PROCESS_URL = 'https://test.saferpay.com/hosting/CreatePayInit.asp'
+    settings.VERIFY_URL = 'https://test.saferpay.com/hosting/VerifyPayConfirm.asp'
+    settings.PAYMENT_COMPLETE_URL = 'https://test.saferpay.com/hosting/PayComplete.asp'
 
     def __init__(self, shop):
         self.shop = shop
@@ -30,19 +37,23 @@ class SaferPayBackend(object):
     def pay(self, request):
         protocol = 'https' if request.is_secure() else 'http'
         shop = self.shop
-        order = shop.get_order(request)
-        order.status = Order.PAYMENT
+        order = HeimgartnerOrder.objects.get(id=request.session.pop('order'))
+        # order.status = 'payment_confirmed'
         order.save()
-        domain = '%s://%s/%s' % (protocol, Site.objects.get_current().domain, get_language())
+        domain = 'http://localhost:8000'
+        # domain = '%s://%s/%s' % (protocol, Site.objects.get_current().domain, get_language())
+
+
+
         data = {
-            'AMOUNT': int(shop.get_order_total(order) * 100),
+            'AMOUNT': int(order.total * 100),
             'CURRENCY': 'CHF', # TODO: don't hard code this
-            'DESCRIPTION': shop.get_order_short_name(order),
+            'DESCRIPTION': 'Order '+str(order.number),
             'LANGID': get_language()[:2],
             'ALLOWCOLLECT': 'yes' if settings.ALLOW_COLLECT else 'no',
             'DELIVERY': 'yes' if settings.DELIVERY else 'no',
             'ACCOUNTID': settings.ACCOUNT_ID,
-            'ORDERID': shop.get_order_unique_id(order),
+            'ORDERID': order.id,
             'SUCCESSLINK': domain +  reverse('saferpay-verify'),
             'BACKLINK': domain + reverse(settings.CANCEL_URL_NAME),
             'FAILLINK': domain + reverse(settings.FAILURE_URL_NAME),
@@ -58,7 +69,11 @@ class SaferPayBackend(object):
         return HttpResponseRedirect(response.content)
 
     def verify(self, request):
-        order = self.shop.get_order(request)
+        data = request.META['QUERY_STRING'].split("+")
+        orderid_raw = [s for s in data if 'ORDERID' in s]
+        order_id = int(str(orderid_raw[0]).replace('ORDERID', '').replace('%3d', '').replace('%22', ''))
+
+        order = HeimgartnerOrder.objects.get(id=order_id)
         if not order:
             return self.failure(request)
         data = {
@@ -69,8 +84,12 @@ class SaferPayBackend(object):
         response = requests.get(settings.VERIFY_URL, params=data)
         if response.status_code == 200 and response.content.startswith('OK'):
             response_data = urlparse.parse_qs(response.content[3:])
+
             transaction_id = response_data['ID'][0]
-            self.shop.confirm_payment(order, self.shop.get_order_total(order), transaction_id, self.backend_name)
+            payment = OrderPayment(order=order, amount=order.total, transaction_id=transaction_id, payment_method='Saferpay')
+            payment.save()
+            order.acknowledge_payment()
+
             params = {'ACCOUNTID': settings.ACCOUNT_ID, 'ID': transaction_id, 'spPassword': settings.ACCOUNT_PASSWORD}
             logger.info('Saferpay: order %i\ttransaction: %s\tpayment verified', order.pk, transaction_id)
             if settings.USE_CELERY:
@@ -85,25 +104,33 @@ class SaferPayBackend(object):
         return self.failure(request)
 
     def cancel(self, request):
-        order = self.shop.get_order(request)
+        data = request.META['QUERY_STRING'].split("+")
+        orderid_raw = [s for s in data if 'ORDERID' in s]
+        order_id = int(str(orderid_raw[0]).replace('ORDERID', '').replace('%3d', '').replace('%22', ''))
+
+        order = HeimgartnerOrder.objects.get(id=order_id)
         if not order:
             raise Http404
         return render_to_response('saferpay_backend/cancel.html', {
-            'order': self.shop.get_order(request),
-            'order_name': self.shop.get_order_short_name(order)
+            'order': order,
+            'order_name': 'Order '+str(order.number),
         }, context_instance=RequestContext(request))
 
     def failure(self, request):
-        order = self.shop.get_order(request)
+        data = request.META['QUERY_STRING'].split("+")
+        orderid_raw = [s for s in data if 'ORDERID' in s]
+        order_id = int(str(orderid_raw[0]).replace('ORDERID', '').replace('%3d', '').replace('%22', ''))
+
+        order = HeimgartnerOrder.objects.get(id=order_id)
         if not order:
             raise Http404
         return render_to_response('saferpay_backend/failure.html', {
              'order': order,
-             'order_name': self.shop.get_order_short_name(order)
+             'order_name': 'Order '+str(order.number),
         }, context_instance=RequestContext(request))
 
     def success(self, request):
-        return HttpResponseRedirect(self.shop.get_finished_url())
+        return HttpResponseRedirect(reverse('thank_you_for_your_order'))
 
     def get_urls(self):
         return patterns('',
