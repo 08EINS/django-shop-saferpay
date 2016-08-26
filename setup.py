@@ -7,8 +7,8 @@ def read(fname):
 
 
 setup(
-    name = 'django-shop-saferpay',
-    version = '1.2.1',
+    name = 'django-shop-saferpay-08eins-custom',
+    version = '2.0.0',
     description = 'A django SHOP payment backend for SaferPay',
     long_description = read('README.rst'),
     author = 'Benjamin Wohlwend',
