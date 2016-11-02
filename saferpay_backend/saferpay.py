@@ -69,9 +69,7 @@ class SaferPayBackend(object):
         return HttpResponseRedirect(response.content)
 
     def verify(self, request):
-        data = request.META['QUERY_STRING'].split("+")
-        orderid_raw = [s for s in data if 'ORDERID' in s]
-        order_id = int(str(orderid_raw[0]).replace('ORDERID', '').replace('%3d', '').replace('%22', ''))
+        order_id = request.session.pop('ORDER_ID')
 
         order = HeimgartnerOrder.objects.get(id=order_id)
         if not order:
