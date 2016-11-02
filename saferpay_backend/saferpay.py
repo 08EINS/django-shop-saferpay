@@ -31,7 +31,7 @@ class SaferPayBackend(object):
     settings.VERIFY_URL = 'https://test.saferpay.com/hosting/VerifyPayConfirm.asp'
     settings.PAYMENT_COMPLETE_URL = 'https://test.saferpay.com/hosting/PayComplete.asp'
 
-    def __init__(self, shop):
+    def     __init__(self, shop):
         self.shop = shop
 
     def pay(self, request):
@@ -40,10 +40,10 @@ class SaferPayBackend(object):
         order = HeimgartnerOrder.objects.get(id=request.session.pop('order'))
         # order.status = 'payment_confirmed'
         order.save()
+        # domain = 'http://localhost:8000'
         domain = '%s://%s' % (protocol, request.META['HTTP_HOST'])
-        # domain = '%s://%s/%s' % (protocol, Site.objects.get_current().domain, get_language())
 
-
+        request.session['ORDER_ID'] = order.id
 
         data = {
             'AMOUNT': int(order.total * 100),
@@ -104,30 +104,20 @@ class SaferPayBackend(object):
         return self.failure(request)
 
     def cancel(self, request):
-        data = request.META['QUERY_STRING'].split("+")
-        orderid_raw = [s for s in data if 'ORDERID' in s]
-        order_id = int(str(orderid_raw[0]).replace('ORDERID', '').replace('%3d', '').replace('%22', ''))
+        order_id = request.session.pop('ORDER_ID')
 
         order = HeimgartnerOrder.objects.get(id=order_id)
         if not order:
             raise Http404
-        return render_to_response('saferpay_backend/cancel.html', {
-            'order': order,
-            'order_name': 'Order '+str(order.number),
-        }, context_instance=RequestContext(request))
+        return HttpResponseRedirect(reverse('shop_welcome'))
 
     def failure(self, request):
-        data = request.META['QUERY_STRING'].split("+")
-        orderid_raw = [s for s in data if 'ORDERID' in s]
-        order_id = int(str(orderid_raw[0]).replace('ORDERID', '').replace('%3d', '').replace('%22', ''))
+        order_id = request.session.pop('ORDER_ID')
 
         order = HeimgartnerOrder.objects.get(id=order_id)
         if not order:
             raise Http404
-        return render_to_response('saferpay_backend/failure.html', {
-             'order': order,
-             'order_name': 'Order '+str(order.number),
-        }, context_instance=RequestContext(request))
+        return HttpResponseRedirect(reverse('shop_welcome'))
 
     def success(self, request):
         return HttpResponseRedirect(reverse('thank_you_for_your_order'))
