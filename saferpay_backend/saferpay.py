@@ -40,7 +40,7 @@ class SaferPayBackend(object):
         order = HeimgartnerOrder.objects.get(id=request.session.pop('order'))
         # order.status = 'payment_confirmed'
         order.save()
-        domain = 'http://localhost:8000'
+        domain = '%s://%s' % (protocol, request.META['HTTP_HOST'])
         # domain = '%s://%s/%s' % (protocol, Site.objects.get_current().domain, get_language())
 
 
