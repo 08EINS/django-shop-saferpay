@@ -36,12 +36,13 @@ class SaferPayBackend(object):
 
     def pay(self, request):
         protocol = 'https' if request.is_secure() else 'http'
+        host = request.get_host()
         shop = self.shop
         order = HeimgartnerOrder.objects.get(id=request.session.pop('order'))
         # order.status = 'payment_confirmed'
         order.save()
         # domain = 'http://localhost:8000'
-        domain = '%s://%s' % (protocol, request.META['HTTP_HOST'])
+        domain = '%s://%s' % (protocol, host)
 
         request.session['ORDER_ID'] = order.id
 
