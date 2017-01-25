@@ -26,11 +26,6 @@ class SaferPayBackend(object):
 
     backend_description = _('credit card')
 
-
-    settings.PROCESS_URL = 'https://test.saferpay.com/hosting/CreatePayInit.asp'
-    settings.VERIFY_URL = 'https://test.saferpay.com/hosting/VerifyPayConfirm.asp'
-    settings.PAYMENT_COMPLETE_URL = 'https://test.saferpay.com/hosting/PayComplete.asp'
-
     def     __init__(self, shop):
         self.shop = shop
 
