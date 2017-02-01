@@ -1,5 +1,8 @@
+# -*- coding: utf-8 -*-
+
 import urlparse
 
+import googlemaps
 from django.conf.urls import patterns, url
 from django.contrib.sites.models import Site
 from django.core.urlresolvers import reverse
@@ -8,7 +11,8 @@ from django.shortcuts import render_to_response
 from django.template.context import RequestContext
 from django.utils.translation import get_language, ugettext_lazy as _
 
-from project.models.order import HeimgartnerOrder
+from project.models.order import HeimgartnerOrder, OrderItem
+from project.utils.shipping_price_calc import calc_special_shipping_cost, calc_regular_shipping_cost
 from shop.models.order import BaseOrder as Order, OrderPayment
 import requests
 
@@ -16,6 +20,8 @@ from saferpay_backend import settings
 from saferpay_backend.tasks import payment_complete
 import logging
 import urlparse
+
+from shop.money import Money
 
 logger = logging.getLogger('shop.payment.saferpay')
 
@@ -39,10 +45,17 @@ class SaferPayBackend(object):
         # domain = 'http://localhost:8000'
         domain = '%s://%s' % (protocol, host)
 
+        order.shipping_costs = PriceCalculator().get_shipping_cost(order)
+
+        if order.shipping_costs != -1.0:
+            order.end_total = order.total + Money(order.shipping_costs) + Money(0.01) # ;)
+        else:
+            order.end_total = order.total
+
         request.session['ORDER_ID'] = order.id
 
         data = {
-            'AMOUNT': int(order.total * 100),
+            'AMOUNT': int(order.end_total * 100),
             'CURRENCY': 'CHF', # TODO: don't hard code this
             'DESCRIPTION': 'Order '+str(order.number),
             'LANGID': get_language()[:2],
@@ -63,6 +76,7 @@ class SaferPayBackend(object):
         response = requests.get(settings.PROCESS_URL, params=data)
         logger.info('Saferpay: order %d\tredirected to saferpay gateway', order.pk)
         return HttpResponseRedirect(response.content)
+
 
     def verify(self, request):
         order_id = request.session.pop('ORDER_ID')
@@ -123,3 +137,65 @@ class SaferPayBackend(object):
             url(r'^c/$', self.cancel, name='saferpay-cancel'),
             url(r'^f/$', self.failure, name='saferpay-failure'),
         )
+
+
+
+class PriceCalculator(object):
+
+    def get_distance(self, order):
+        """ Get the distance between the company and the delivery centre """
+        client = googlemaps.Client('AIzaSyA9POK-qH190vWPzfuAzKID6I9hYGcPGtQ')
+        shipping = ', '.join(map(str, order.shipping_address_text.split('\n')[2:]))
+        origin = 'Zürcherstrasse 37, 9501 Wil/SG'
+
+        matrix = client.distance_matrix(origin, shipping)
+
+        kilometers = int(round(matrix['rows'][0]['elements'][0]['distance']['value']/1000))
+        return kilometers
+
+    def is_bulky(self, items):
+        """Check if products are bulky"""
+        for item in items:
+            if item.product.transport_key == 2:
+                return True
+        return False
+
+    def camion(self, items):
+        """ Check if delivery will be done with a Camion """
+        for item in items:
+            if item.product.transport_key == 3:
+                return True
+        return False
+
+    def deliverable(self, items):
+        """ check if a item cant be delivered """
+        for item in items:
+            if item.product.transport_key == 9:
+                return False
+        return True
+
+    def get_shipping_cost(self, order):
+        """ Calculating shipping costs by distance and type of delivery """
+        order_items = OrderItem.objects.all().filter(order=order)
+        weight = self.get_overall_weight(order_items)
+        distance = self.get_distance(order)
+
+
+        if self.camion(order_items):
+            return calc_special_shipping_cost(weight, distance)
+        elif self.is_bulky(order_items):
+            return calc_regular_shipping_cost(999)
+
+        if self.deliverable(order_items):
+            return calc_regular_shipping_cost(weight)
+        else:
+            return
+
+
+    def get_overall_weight(self, items):
+        """ Calculate the delivery weight """
+        weight = 0
+        for item in items:
+            weight += item.product.weight
+
+        return weight
