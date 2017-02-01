@@ -48,7 +48,7 @@ class SaferPayBackend(object):
         order.shipping_costs = PriceCalculator().get_shipping_cost(order)
 
         if order.shipping_costs != -1.0:
-            order.end_total = order.total + Money(order.shipping_costs) + Money(0.01) # ;)
+            order.end_total = order.total + Money(order.shipping_costs)
         else:
             order.end_total = order.total
 
