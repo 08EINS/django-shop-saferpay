@@ -130,7 +130,7 @@ class SaferPayBackend(object):
         order = HeimgartnerOrder.objects.get(id=order_id)
         if not order:
             raise Http404
-        return HttpResponseRedirect(reverse('shop_welcome'))
+        return HttpResponseRedirect(reverse('order_cancelled'))
 
     def success(self, request):
         return HttpResponseRedirect(reverse('thank_you_for_your_order'))
