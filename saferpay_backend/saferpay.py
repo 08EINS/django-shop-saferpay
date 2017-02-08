@@ -36,6 +36,16 @@ class SaferPayBackend(object):
     def     __init__(self, shop):
         self.shop = shop
 
+    def round_to_5(self, amount):
+        new_am = float(amount) * 10
+        new_am = round(new_am * 2) / 2
+        return new_am / 10
+
+    def round_to_50(self, amount):
+        new_am = float(amount) / 10
+        new_am = round(new_am * 2) / 2
+        return int(new_am * 10)
+
     def pay(self, request):
         protocol = 'https' if request.is_secure() else 'http'
         host = request.get_host()
@@ -48,15 +58,17 @@ class SaferPayBackend(object):
 
         order.shipping_costs = PriceCalculator().get_shipping_cost(order)
 
+        order.total = Money(self.round_to_5(order._total))
+
         if order.shipping_costs != -1.0:
-            order.end_total = order.total + Money(order.shipping_costs)
+            order.end_total = order.total + Money(self.round_to_5(order.shipping_costs))
         else:
             order.end_total = order.total
 
         request.session['ORDER_ID'] = order.id
 
         data = {
-            'AMOUNT': int(order.end_total * 100),
+            'AMOUNT': self.round_to_50(int(order.end_total * 100)),
             'CURRENCY': 'CHF', # TODO: don't hard code this
             'DESCRIPTION': 'Order '+str(order.number),
             'LANGID': get_language()[:2],
@@ -137,7 +149,7 @@ class SaferPayBackend(object):
 
     def get_urls(self):
         return patterns('',
-            url(r'^$', self.pay, name='saferpay'),
+            url(r'^$', self.pay, name='saferpay-pay'),
             url(r'^v/$', self.verify, name='saferpay-verify'),
             url(r'^c/$', self.cancel, name='saferpay-cancel'),
             url(r'^f/$', self.failure, name='saferpay-failure'),
