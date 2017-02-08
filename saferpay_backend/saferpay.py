@@ -122,7 +122,7 @@ class SaferPayBackend(object):
 
         if not order:
             raise Http404
-        return HttpResponseRedirect(reverse('cart'))
+        return HttpResponseRedirect(reverse('order_cancelled'))
 
     def failure(self, request):
         order_id = request.session.pop('ORDER_ID')
