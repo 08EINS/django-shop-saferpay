@@ -108,6 +108,9 @@ class SaferPayBackend(object):
                 except Exception:
                     pass # this is already logged in payment_complete
             order.save()  # force order.modified to be bumped (we rely on this in the "thank you" view)
+
+            self.send_confirmation_email(request, order)
+
             return self.success(request)
         return self.failure(request)
 
@@ -115,9 +118,10 @@ class SaferPayBackend(object):
         order_id = request.session.pop('ORDER_ID')
 
         order = HeimgartnerOrder.objects.get(id=order_id)
+
         if not order:
             raise Http404
-        return HttpResponseRedirect(reverse('shop_welcome'))
+        return HttpResponseRedirect(reverse('cart'))
 
     def failure(self, request):
         order_id = request.session.pop('ORDER_ID')
@@ -137,6 +141,46 @@ class SaferPayBackend(object):
             url(r'^c/$', self.cancel, name='saferpay-cancel'),
             url(r'^f/$', self.failure, name='saferpay-failure'),
         )
+
+
+    def send_confirmation_email(self, request, order, domain_override=None,
+                              subject_template_name='email/order/order_confirmation_subject.txt',
+                              email_template_name='email/order/order_confirmation_email.html',
+                              use_https=False, token_generator=default_token_generator,
+                              from_email='noreply@heimgartner.com'):
+
+
+
+        order_items_count = OrderItem.objects.filter(order=order).count()
+        #billing_address = BaseShippingAddress.objects.filter()
+        if not domain_override:
+            current_site = get_current_site(request)
+            site_name = current_site.name
+            domain = current_site.domain
+        else:
+            site_name = domain = domain_override
+        c = {
+            'email': order.customer.user.email,
+            'domain': domain,
+            'site_name': site_name,
+            'user': order.customer.user,
+            'order': order,
+            'order_items': OrderItem.objects.filter(order=order),
+            'shipping_costs': float(PriceCalculator().get_shipping_cost(order)),
+            'subtotal': order.subtotal,
+            'total': order.total,
+            'token': token_generator.make_token(order.customer.user),
+            'protocol': use_https and 'https' or 'http',
+        }
+        subject = loader.render_to_string(subject_template_name, c)
+        subject = ''.join(subject.splitlines())
+        html_content = render_to_string(email_template_name, context_instance=RequestContext(request, c))
+        text_content = strip_tags(html_content)
+
+        msg = EmailMultiAlternatives(subject, text_content, from_email, [order.customer.user.email], bcc=[from_email])
+        msg.attach_alternative(html_content, "text/html")
+        msg.send()
+
 
 
 
@@ -199,3 +243,5 @@ class PriceCalculator(object):
             weight += item.product.weight
 
         return weight
+
+
