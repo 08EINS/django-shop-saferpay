@@ -4,6 +4,7 @@ import urlparse
 
 import googlemaps
 from django.conf.urls import patterns, url
+from django.contrib.auth.tokens import default_token_generator
 from django.contrib.sites.models import Site
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect, Http404
