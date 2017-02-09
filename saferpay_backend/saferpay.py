@@ -5,11 +5,15 @@ import urlparse
 import googlemaps
 from django.conf.urls import patterns, url
 from django.contrib.auth.tokens import default_token_generator
-from django.contrib.sites.models import Site
+from django.contrib.sites.models import Site, get_current_site
+from django.core.mail.message import EmailMultiAlternatives
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect, Http404
 from django.shortcuts import render_to_response
+from django.template import loader
 from django.template.context import RequestContext
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
 from django.utils.translation import get_language, ugettext_lazy as _
 
 from project.models.order import HeimgartnerOrder, OrderItem
@@ -159,13 +163,16 @@ class SaferPayBackend(object):
     def send_confirmation_email(self, request, order, domain_override=None,
                               subject_template_name='email/order/order_confirmation_subject.txt',
                               email_template_name='email/order/order_confirmation_email.html',
-                              use_https=False, token_generator=default_token_generator,
+                              use_https=False,
                               from_email='noreply@heimgartner.com'):
 
 
 
         order_items_count = OrderItem.objects.filter(order=order).count()
+
         #billing_address = BaseShippingAddress.objects.filter()
+
+
         if not domain_override:
             current_site = get_current_site(request)
             site_name = current_site.name
@@ -173,16 +180,15 @@ class SaferPayBackend(object):
         else:
             site_name = domain = domain_override
         c = {
-            'email': order.customer.user.email,
+            'email': order.email,
             'domain': domain,
             'site_name': site_name,
-            'user': order.customer.user,
+            'user': order.customer,
             'order': order,
             'order_items': OrderItem.objects.filter(order=order),
             'shipping_costs': float(PriceCalculator().get_shipping_cost(order)),
             'subtotal': order.subtotal,
             'total': order.total,
-            'token': token_generator.make_token(order.customer.user),
             'protocol': use_https and 'https' or 'http',
         }
         subject = loader.render_to_string(subject_template_name, c)
@@ -190,7 +196,7 @@ class SaferPayBackend(object):
         html_content = render_to_string(email_template_name, context_instance=RequestContext(request, c))
         text_content = strip_tags(html_content)
 
-        msg = EmailMultiAlternatives(subject, text_content, from_email, [order.customer.user.email], bcc=[from_email])
+        msg = EmailMultiAlternatives(subject, text_content, from_email, [order.email], bcc=[from_email])
         msg.attach_alternative(html_content, "text/html")
         msg.send()
 
