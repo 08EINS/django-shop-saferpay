@@ -246,7 +246,7 @@ class PriceCalculator(object):
         if self.deliverable(order_items):
             return calc_regular_shipping_cost(weight)
         else:
-            return
+            return -1
 
 
     def get_overall_weight(self, items):
