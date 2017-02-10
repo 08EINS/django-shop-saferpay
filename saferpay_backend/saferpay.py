@@ -25,6 +25,7 @@ from saferpay_backend import settings
 from saferpay_backend.tasks import payment_complete
 import logging
 import urlparse
+import re
 
 from shop.money import Money
 
@@ -237,6 +238,26 @@ class PriceCalculator(object):
             if item.product.transport_key == 9:
                 return False
         return True
+    
+        def envelope_shipping(self, items):
+        """Check if can be shipped in envelope"""
+        if len(items) > 1:
+            return False
+        else:
+            for item in items:
+                if item.product.dimensions == '58cm x 58cm':
+                    return True
+                elif ' x ' in item.product.dimensions:
+                    matches = re.findall('([0-9]{1,3})(?=cm)', item.product.dimensions, re.DOTALL)
+                    for cm in matches:
+                        if int(cm) <= 58:
+                            pass
+                        else:
+                            return False
+
+                    return True
+                else:
+                    return False
 
     def get_shipping_cost(self, order):
         """ Calculating shipping costs by distance and type of delivery """
@@ -248,6 +269,8 @@ class PriceCalculator(object):
         if self.camion(order_items):
             return calc_special_shipping_cost(weight, distance)
         elif self.is_bulky(order_items):
+            return calc_regular_shipping_cost(99999999, 'A')
+        elif self.envelope_shipping(order_items):
             return calc_regular_shipping_cost(999)
 
         if self.deliverable(order_items):
