@@ -162,7 +162,7 @@ class SaferPayBackend(object):
 
     def send_confirmation_email(self, request, order, domain_override=None,
                               subject_template_name='email/order/order_confirmation_subject.txt',
-                              email_template_name='email/order/order_confirmation_email.html',
+                              email_template_name='email/order/order_confirmation_email_saferpay.html',
                               use_https=False,
                               from_email='noreply@heimgartner.com'):
 
