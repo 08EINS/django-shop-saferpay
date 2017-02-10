@@ -239,21 +239,20 @@ class PriceCalculator(object):
                 return False
         return True
     
-        def envelope_shipping(self, items):
+    def envelope_shipping(self, items):
         """Check if can be shipped in envelope"""
         if len(items) > 1:
             return False
         else:
             for item in items:
-                if item.product.dimensions == '58cm x 58cm':
-                    return True
-                elif ' x ' in item.product.dimensions:
-                    matches = re.findall('([0-9]{1,3})(?=cm)', item.product.dimensions, re.DOTALL)
-                    for cm in matches:
-                        if int(cm) <= 58:
-                            pass
-                        else:
-                            return False
+                if ' x ' in item.product.dimensions:
+                    try:
+                        dimensions = str(item.product.dimensions).replace(' cm', '').split(' x ')
+                        for dimension in dimensions:
+                            if int(dimension) > 58:
+                                return False
+                    except Exception:
+                        return False
 
                     return True
                 else:
@@ -271,7 +270,7 @@ class PriceCalculator(object):
         elif self.is_bulky(order_items):
             return calc_regular_shipping_cost(99999999, 'A')
         elif self.envelope_shipping(order_items):
-            return calc_regular_shipping_cost(999)
+            return 6. #default envelope
 
         if self.deliverable(order_items):
             return calc_regular_shipping_cost(weight)
