@@ -161,10 +161,10 @@ class SaferPayBackend(object):
 
 
     def send_confirmation_email(self, request, order, domain_override=None,
-                              subject_template_name='email/order/order_confirmation_subject.txt',
-                              email_template_name='email/order/order_confirmation_email_saferpay.html',
-                              use_https=False,
-                              from_email='info@heimgartner.com'):
+                          subject_template_name='email/order/order_confirmation_subject.txt',
+                          email_template_name='email/order/order_confirmation_email_saferpay.html',
+                          use_https=False,
+                          from_email='info@heimgartner.com'):
 
 
 
@@ -179,6 +179,8 @@ class SaferPayBackend(object):
             domain = current_site.domain
         else:
             site_name = domain = domain_override
+
+        shipping = float(PriceCalculator().get_shipping_cost(order))
         c = {
             'email': order.email,
             'domain': domain,
@@ -186,9 +188,10 @@ class SaferPayBackend(object):
             'user': order.customer,
             'order': order,
             'order_items': OrderItem.objects.filter(order=order),
-            'shipping_costs': float(PriceCalculator().get_shipping_cost(order)),
+            'shipping_costs': shipping,
             'subtotal': order.subtotal,
-            'total': order.total,
+            'mwst': self.round_to_5(order.mwst),
+            'total': self.round_to_5((order.total + Money(shipping))),
             'protocol': use_https and 'https' or 'http',
         }
         subject = loader.render_to_string(subject_template_name, c)
@@ -196,11 +199,10 @@ class SaferPayBackend(object):
         html_content = render_to_string(email_template_name, context_instance=RequestContext(request, c))
         text_content = strip_tags(html_content)
 
-        msg = EmailMultiAlternatives(subject, text_content, from_email, [order.email], bcc=[from_email])
+        # msg = EmailMultiAlternatives(subject, text_content, from_email, [order.email], bcc=[from_email])
+        msg = EmailMultiAlternatives(subject, text_content, from_email, [order.email])
         msg.attach_alternative(html_content, "text/html")
         msg.send()
-
-
 
 
 class PriceCalculator(object):
