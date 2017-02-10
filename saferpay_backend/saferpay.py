@@ -164,7 +164,7 @@ class SaferPayBackend(object):
                               subject_template_name='email/order/order_confirmation_subject.txt',
                               email_template_name='email/order/order_confirmation_email_saferpay.html',
                               use_https=False,
-                              from_email='noreply@heimgartner.com'):
+                              from_email='info@heimgartner.com'):
 
 
 
