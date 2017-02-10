@@ -199,8 +199,7 @@ class SaferPayBackend(object):
         html_content = render_to_string(email_template_name, context_instance=RequestContext(request, c))
         text_content = strip_tags(html_content)
 
-        # msg = EmailMultiAlternatives(subject, text_content, from_email, [order.email], bcc=[from_email])
-        msg = EmailMultiAlternatives(subject, text_content, from_email, [order.email])
+        msg = EmailMultiAlternatives(subject, text_content, from_email, [order.email], bcc=[from_email])
         msg.attach_alternative(html_content, "text/html")
         msg.send()
 
