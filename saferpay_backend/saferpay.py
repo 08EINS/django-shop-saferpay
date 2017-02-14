@@ -260,7 +260,7 @@ class PriceCalculator(object):
 
     def get_shipping_cost(self, order):
         """ Calculating shipping costs by distance and type of delivery """
-        order_items = OrderItem.objects.all().filter(order=order)
+        order_items = OrderItem.objects.filter(order=order)
         weight = self.get_overall_weight(order_items)
         distance = self.get_distance(order)
 
