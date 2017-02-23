@@ -15,7 +15,7 @@ from django.template.context import RequestContext
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.utils.translation import get_language, ugettext_lazy as _
-
+from project.settings.default import SHOP_COMPONENT, CMS_COMPONENT
 from project.models.order import HeimgartnerOrder, OrderItem
 from project.utils.shipping_price_calc import calc_special_shipping_cost, calc_regular_shipping_cost
 from shop.models.order import BaseOrder as Order, OrderPayment
@@ -133,6 +133,8 @@ class SaferPayBackend(object):
         return self.failure(request)
 
     def cancel(self, request):
+        if request.META['HTTP_HOST'] == SHOP_COMPONENT:
+            request.META['HTTP_HOST'] = CMS_COMPONENT
         return HttpResponseRedirect(reverse('order_cancelled'))
 
     def failure(self, request):
@@ -141,6 +143,9 @@ class SaferPayBackend(object):
         order = HeimgartnerOrder.objects.get(id=order_id)
         if not order:
             raise Http404
+        if request.META['HTTP_HOST'] == SHOP_COMPONENT:
+            request.META['HTTP_HOST'] = CMS_COMPONENT
+            
         return HttpResponseRedirect(reverse('order_cancelled'))
 
     def success(self, request):
