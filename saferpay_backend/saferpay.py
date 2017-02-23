@@ -149,6 +149,8 @@ class SaferPayBackend(object):
         return HttpResponseRedirect(reverse('order_cancelled'))
 
     def success(self, request):
+        if request.META['HTTP_HOST'] == SHOP_COMPONENT:
+            request.META['HTTP_HOST'] = CMS_COMPONENT
         return HttpResponseRedirect(reverse('thank_you_for_your_order'))
 
     def get_urls(self):
