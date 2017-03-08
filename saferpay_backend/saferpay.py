@@ -283,7 +283,7 @@ class PriceCalculator(object):
         """ Calculate the delivery weight """
         weight = 0
         for item in items:
-            weight += item.product.weight
+            weight += item.product.weight * item.quantity
 
         return weight
 
