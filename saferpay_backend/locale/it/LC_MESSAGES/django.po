@@ -16,12 +16,12 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n > 1)\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: saferpay_backend/saferpay.py:37
 msgid "Zahlung per Kreditkarte"
-msgstr "Le paiement par carte de crédit"
+msgstr "Il pagamento con carta di credito"
 
 #: saferpay_backend/saferpay.py:40
 msgid "credit card"
-msgstr "carte de crédit"
+msgstr "carta di credito"
