@@ -216,7 +216,10 @@ class PriceCalculator(object):
 
         matrix = client.distance_matrix(origin, shipping)
 
-        kilometers = int(round(matrix['rows'][0]['elements'][0]['distance']['value']/1000))
+        try:
+            kilometers = int(round(matrix['rows'][0]['elements'][0]['distance']['value']/1000))
+        except:
+            kilometers = int(100)
         return kilometers
 
     def is_bulky(self, items):
