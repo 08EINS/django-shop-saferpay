@@ -53,7 +53,7 @@ class SaferPayBackend(object):
 
     def pay(self, request):
         protocol = 'https' if request.is_secure() else 'http'
-        host = request.get_host()
+        host = 'www' + CMS_COMPONENT
         shop = self.shop
         order = HeimgartnerOrder.objects.get(id=request.session.pop('order'))
         # order.status = 'payment_confirmed'
@@ -143,8 +143,6 @@ class SaferPayBackend(object):
         return HttpResponseRedirect(reverse('order_cancelled'))
 
     def failure(self, request):
-        order_id = request.session.pop('ORDER_ID')
-
         order = HeimgartnerOrder.objects.get(id=order_id)
         if not order:
             raise Http404
