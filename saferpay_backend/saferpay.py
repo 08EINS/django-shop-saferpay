@@ -143,6 +143,13 @@ class SaferPayBackend(object):
         return HttpResponseRedirect(reverse('order_cancelled'))
 
     def failure(self, request):
+        order_id = [attribute for attribute in request.GET['DATA'].split(' ') if 'ORDERID' in attribute]
+
+        if len(order_id) == 1:
+            order_id = int(re.findall('"([^"]*)"', order_id[0])[0])
+        else:
+            return self.failure(request)
+
         order = HeimgartnerOrder.objects.get(id=order_id)
         if not order:
             raise Http404
