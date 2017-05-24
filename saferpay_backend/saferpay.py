@@ -53,7 +53,7 @@ class SaferPayBackend(object):
 
     def pay(self, request):
         protocol = 'https' if request.is_secure() else 'http'
-        host = 'www.' + CMS_COMPONENT
+        host = CMS_COMPONENT
         shop = self.shop
         order = HeimgartnerOrder.objects.get(id=request.session.pop('order'))
         # order.status = 'payment_confirmed'
