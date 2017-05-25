@@ -61,19 +61,24 @@ class SaferPayBackend(object):
         # domain = 'http://localhost:8000'
         domain = '%s://%s' % (protocol, host)
 
-        order.shipping_costs = PriceCalculator().get_shipping_cost(order)
+        order.shipping_costs = float(PriceCalculator().get_shipping_cost(order))
+        mwst_shipping = self.round_to_5(order.shipping_costs * 0.08) # TODO: don't hard code this
 
         order.total = Money(self.round_to_5(order._total))
 
         if order.shipping_costs != -1.0:
-            order.end_total = order.total + Money(self.round_to_5(order.shipping_costs))
+            order.end_total = order.total + Money(order.shipping_costs) + Money(mwst_shipping)
         else:
             order.end_total = order.total
+
+        order.total = order.end_total
+        order.mwst_new = order.mwst + mwst_shipping
+        order.save()
 
         request.session['ORDER_ID'] = order.id
 
         data = {
-            'AMOUNT': self.round_to_50(int(order.end_total * 100)),
+            'AMOUNT': self.round_to_50(int(order.end_total * 100)), # TODO: DOMO: Recheck this
             'CURRENCY': 'CHF', # TODO: don't hard code this
             'DESCRIPTION': 'Order '+str(order.number),
             'LANGID': get_language()[:2],
@@ -130,6 +135,11 @@ class SaferPayBackend(object):
                     payment_complete(params=params, order_id=order.pk)
                 except Exception:
                     pass # this is already logged in payment_complete
+
+            # create additional data for email template
+            mwst_shipping = self.round_to_5(order.shipping_costs * 0.08)  # TODO: don't hard code this
+            order.total = order.end_total
+            order.mwst_new = order.mwst + mwst_shipping
             order.save()  # force order.modified to be bumped (we rely on this in the "thank you" view)
 
             self.send_confirmation_email(request, order)
