@@ -137,7 +137,15 @@ class SaferPayBackend(object):
                     pass # this is already logged in payment_complete
 
             # create additional data for email template
+            order.shipping_costs = float(PriceCalculator().get_shipping_cost(order))
             mwst_shipping = self.round_to_5(order.shipping_costs * 0.08)  # TODO: don't hard code this
+            
+            order.total = Money(self.round_to_5(order._total))
+            
+            if order.shipping_costs != -1.0:
+                order.end_total = order.total + Money(order.shipping_costs) + Money(mwst_shipping)
+            else:
+                order.end_total = order.total
             order.total = order.end_total
             order.mwst_new = order.mwst + mwst_shipping
             order.save()  # force order.modified to be bumped (we rely on this in the "thank you" view)
