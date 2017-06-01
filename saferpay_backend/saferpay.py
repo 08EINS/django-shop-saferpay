@@ -72,6 +72,7 @@ class SaferPayBackend(object):
             order.end_total = order.total
 
         order.total = order.end_total
+        order._total = order.end_total
         order.mwst_new = order.mwst + mwst_shipping
         order.save()
 
