@@ -63,17 +63,21 @@ class SaferPayBackend(object):
 
         order.shipping_costs = float(PriceCalculator().get_shipping_cost(order))
         mwst_shipping = self.round_to_5(order.shipping_costs * 0.08) # TODO: don't hard code this
+        order.total = Money(self.round_to_5(order._total))
+        order.mwst_new = self.round_to_5(order.mwst + mwst_shipping)
+
+        # Shipping costs are without MwSt
+        # order.shipping_costs -= mwst_shipping
 
         order.total = Money(self.round_to_5(order._total))
-
-        if order.shipping_costs != -1.0:
-            order.end_total = order.total + Money(order.shipping_costs) + Money(mwst_shipping)
+        if order.shipping_costs != -1.0 and not order.end_total:
+            order.end_total = order.subtotal + Money(order.shipping_costs) + Money(order.mwst_new) - Money(
+                order.discount)
         else:
             order.end_total = order.total
 
         order.total = order.end_total
         order._total = order.end_total
-        order.mwst_new = order.mwst + mwst_shipping
         order.save()
 
         request.session['ORDER_ID'] = order.id
@@ -142,13 +146,20 @@ class SaferPayBackend(object):
             mwst_shipping = self.round_to_5(order.shipping_costs * 0.08)  # TODO: don't hard code this
             
             order.total = Money(self.round_to_5(order._total))
-            
-            if order.shipping_costs != -1.0:
-                order.end_total = order.total + Money(order.shipping_costs) + Money(mwst_shipping)
+            order.mwst_new = self.round_to_5(order.mwst + mwst_shipping)
+
+            # Shipping costs are without MwSt
+            # order.shipping_costs -= mwst_shipping
+
+            order.total = Money(self.round_to_5(order._total))
+            if order.shipping_costs != -1.0 and not order.end_total:
+                order.end_total = order.subtotal + Money(order.shipping_costs) + Money(order.mwst_new) - Money(
+                    order.discount)
             else:
                 order.end_total = order.total
+
             order.total = order.end_total
-            order.mwst_new = order.mwst + mwst_shipping
+            order._total = order.end_total
             order.save()  # force order.modified to be bumped (we rely on this in the "thank you" view)
 
             self.send_confirmation_email(request, order)
