@@ -61,25 +61,6 @@ class SaferPayBackend(object):
         # domain = 'http://localhost:8000'
         domain = '%s://%s' % (protocol, host)
 
-        order.shipping_costs = float(PriceCalculator().get_shipping_cost(order))
-        mwst_shipping = self.round_to_5(order.shipping_costs * 0.08) # TODO: don't hard code this
-        order.total = Money(self.round_to_5(order._total))
-        order.mwst_new = self.round_to_5(order.mwst + mwst_shipping)
-
-        # Shipping costs are without MwSt
-        # order.shipping_costs -= mwst_shipping
-
-        order.total = Money(self.round_to_5(order._total))
-        if order.shipping_costs != -1.0 and not order.end_total:
-            order.end_total = order.subtotal + Money(order.shipping_costs) + Money(order.mwst_new) - Money(
-                order.discount)
-        else:
-            order.end_total = order.total
-
-        order.total = order.end_total
-        order._total = order.end_total
-        order.save()
-
         request.session['ORDER_ID'] = order.id
 
         data = {
