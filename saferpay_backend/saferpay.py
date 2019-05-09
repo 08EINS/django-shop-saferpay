@@ -269,19 +269,18 @@ class PriceCalculator(object):
         if len(items) > 1:
             return False
         else:
-            for item in items:
-                if ' x ' in item.product.dimensions:
-                    try:
+            try:
+                for item in items:
+                    if ' x ' in item.product.dimensions:
                         dimensions = str(item.product.dimensions).replace(' cm', '').split(' x ')
                         for dimension in dimensions:
                             if int(dimension) > 58:
                                 return False
-                    except Exception:
+                        return True
+                    else:
                         return False
-
-                    return True
-                else:
-                    return False
+            except Exception:
+                return False
 
     def get_shipping_cost(self, order):
         """ Calculating shipping costs by distance and type of delivery """
